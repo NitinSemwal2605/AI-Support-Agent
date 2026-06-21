@@ -4,10 +4,7 @@ import { conversationService } from '../services/conversation.service';
 import { AppError } from '../types';
 
 export class ChatController {
-  /**
-   * POST /api/chat/message
-   * Processes a user message and returns an AI reply.
-   */
+  // Processes a user message and returns an AI reply.
   async sendMessage(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { message, sessionId } = req.body;

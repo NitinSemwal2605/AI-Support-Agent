@@ -3,7 +3,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import chatRoutes from './routes/chat.routes';
+import { sequelize } from './db';
+import { connectRedis } from './db/redis';
 import { errorMiddleware, notFoundMiddleware } from './middleware/error.middleware';
 
 const app = express();
@@ -41,6 +44,15 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 }
 
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+const chatLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute window
+  max: 20,                  // Max 20 requests per minute per IP
+  message: { error: 'Too many requests. Please wait a moment before sending another message.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.status(200).json({
@@ -52,7 +64,7 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/chat', chatRoutes);
+app.use('/api/chat', chatLimiter, chatRoutes);
 // Alias for conversation routes (accessible both ways)
 app.use('/api', chatRoutes);
 
@@ -63,14 +75,23 @@ app.use(errorMiddleware);
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-app.listen(PORT, () => {
-  console.log(`
-  🚀 Spur Support Backend running
-  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  📍 Local:   http://localhost:${PORT}
-  🏥 Health:  http://localhost:${PORT}/health
-  🌍 Env:     ${process.env.NODE_ENV || 'development'}
-  `);
+sequelize.sync({ alter: true }).then(async () => {
+  console.log('📦 Database synced with Sequelize.');
+  
+  // Try to connect to Redis, but don't crash if it fails
+  await connectRedis();
+  
+  app.listen(PORT, () => {
+    console.log(`
+    🚀 Spur Support Backend running
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    📍 Local:   http://localhost:${PORT}
+    🏥 Health:  http://localhost:${PORT}/health
+    🌍 Env:     ${process.env.NODE_ENV || 'development'}
+    `);
+  });
+}).catch((error) => {
+  console.error('❌ Database sync failed:', error);
 });
 
 export default app;

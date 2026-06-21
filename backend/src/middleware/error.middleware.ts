@@ -28,8 +28,8 @@ export const errorMiddleware = (
     return;
   }
 
-  // Prisma errors
-  if (err.constructor?.name?.startsWith('Prisma')) {
+  // Sequelize / Database errors
+  if (err.name === 'SequelizeError' || err.name?.startsWith('Sequelize')) {
     console.error('Database error:', err);
     res.status(503).json({ error: 'Database unavailable' });
     return;

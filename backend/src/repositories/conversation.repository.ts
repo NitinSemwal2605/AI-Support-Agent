@@ -1,12 +1,12 @@
-import prisma from '../db/prisma';
+import { Conversation, Message } from '../db';
 import { IConversation, DatabaseError } from '../types';
 
 export class ConversationRepository {
   async create(): Promise<IConversation> {
     try {
-      return await prisma.conversation.create({
-        data: {},
-      });
+      const conversation = await Conversation.create({});
+      // Return plain JSON object to match IConversation interface
+      return conversation.toJSON();
     } catch (error) {
       throw new DatabaseError('Failed to create conversation');
     }
@@ -14,14 +14,18 @@ export class ConversationRepository {
 
   async findById(id: string): Promise<IConversation | null> {
     try {
-      return await prisma.conversation.findUnique({
-        where: { id },
-        include: {
-          messages: {
-            orderBy: { createdAt: 'asc' },
-          },
-        },
+      const conversation = await Conversation.findByPk(id);
+      if (!conversation) return null;
+
+      // Fetch messages separately to avoid Sequelize's order-in-include typing issues
+      const messages = await Message.findAll({
+        where: { conversationId: id },
+        order: [['createdAt', 'ASC']],
       });
+
+      const result = conversation.toJSON();
+      result.messages = messages.map((m) => m.toJSON());
+      return result;
     } catch (error) {
       throw new DatabaseError('Failed to fetch conversation');
     }
@@ -29,15 +33,17 @@ export class ConversationRepository {
 
   async findAll(): Promise<IConversation[]> {
     try {
-      return await prisma.conversation.findMany({
-        orderBy: { createdAt: 'desc' },
-        include: {
-          messages: {
-            take: 1,
-            orderBy: { createdAt: 'desc' },
+      const conversations = await Conversation.findAll({
+        order: [['createdAt', 'DESC']],
+        include: [
+          {
+            model: Message,
+            as: 'messages',
+            limit: 1, // Only get the latest message
           },
-        },
+        ],
       });
+      return conversations.map((c) => c.toJSON());
     } catch (error) {
       throw new DatabaseError('Failed to fetch conversations');
     }
@@ -45,7 +51,7 @@ export class ConversationRepository {
 
   async exists(id: string): Promise<boolean> {
     try {
-      const count = await prisma.conversation.count({ where: { id } });
+      const count = await Conversation.count({ where: { id } });
       return count > 0;
     } catch (error) {
       throw new DatabaseError('Failed to check conversation existence');

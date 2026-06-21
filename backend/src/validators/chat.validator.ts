@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+// Define the validation schema using Zod
 export const chatRequestSchema = z.object({
   message: z
     .string({

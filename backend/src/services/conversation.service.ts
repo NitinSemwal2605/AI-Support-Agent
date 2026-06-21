@@ -3,10 +3,8 @@ import { messageRepository } from '../repositories/message.repository';
 import { IConversation, IMessage, LLMHistoryEntry, AppError } from '../types';
 
 export class ConversationService {
-  /**
-   * Returns an existing conversation or creates a new one.
-   * If sessionId is provided but doesn't exist in DB, creates a fresh conversation.
-   */
+  // Returns an existing conversation or creates a new one.
+  // If sessionId is provided but doesn't exist in DB, creates a fresh conversation.
   async getOrCreate(sessionId?: string | null): Promise<IConversation> {
     if (sessionId) {
       const exists = await conversationRepository.exists(sessionId);
@@ -18,10 +16,8 @@ export class ConversationService {
     return conversationRepository.create();
   }
 
-  /**
-   * Fetches the last N messages from a conversation and formats them
-   * as LLM history entries (user/assistant roles).
-   */
+  // Fetches the last N messages from a conversation and formats them
+  // as LLM history entries (user/assistant roles).
   async getFormattedHistory(
     conversationId: string,
     limit: number = 20

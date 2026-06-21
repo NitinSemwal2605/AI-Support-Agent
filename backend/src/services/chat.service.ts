@@ -1,8 +1,9 @@
 import { conversationService } from './conversation.service';
 import { messageRepository } from '../repositories/message.repository';
 import { llmService } from './llm.service';
-import prisma from '../db/prisma';
+import { KnowledgeBase } from '../db';
 import { ChatRequest, ChatResponse } from '../types';
+import { redisClient, isRedisConnected } from '../db/redis';
 
 export class ChatService {
   /**
@@ -28,18 +29,46 @@ export class ChatService {
       content: message,
     });
 
-    // Step 3: Fetch conversation history (exclude the message we just saved)
+    // Step 3: Fetch conversation history
     const history = await conversationService.getFormattedHistory(conversation.id, 20);
     // Remove the last entry (user message we just added) since we pass it separately to LLM
     const historyWithoutCurrent = history.slice(0, -1);
 
-    // Step 4: Fetch knowledge base
-    const knowledgeEntries = await prisma.knowledgeBase.findMany({
-      orderBy: { createdAt: 'asc' },
-    });
-    const knowledgeBase = knowledgeEntries.map(
-      (entry) => `### ${entry.title}\n${entry.content}`
-    );
+    // Step 4: Fetch knowledge base (with Redis cache)
+    let knowledgeBase: string[] = [];
+    const CACHE_KEY = 'kb:all_entries';
+    if (isRedisConnected) {
+      try {
+        const cachedKB = await redisClient.get(CACHE_KEY);
+        if (cachedKB) {
+          knowledgeBase = JSON.parse(cachedKB);
+          console.log('Cache Hit: Loaded Knowledge Base from Redis');
+        }
+      } catch (err) {
+        console.warn('Redis GET failed, falling back to database', err);
+      }
+    }
+
+    // Cache miss — fetch from Postgres and populate Redis
+    if (knowledgeBase.length === 0) {
+      console.log('Cache Miss: Fetching Knowledge Base from PostgreSQL');
+      const knowledgeEntries = await KnowledgeBase.findAll({
+        order: [['createdAt', 'ASC']],
+      });
+
+      knowledgeBase = knowledgeEntries.map(
+        (entry) => `### ${entry.title}\n${entry.content}`
+      );
+
+      // Cache for 1 hour
+      if (isRedisConnected && knowledgeBase.length > 0) {
+        try {
+          await redisClient.setEx(CACHE_KEY, 3600, JSON.stringify(knowledgeBase));
+        } catch (err) {
+          console.warn('Redis SET failed', err);
+        }
+      }
+    }
 
     // Step 5: Generate AI reply
     const reply = await llmService.generateReply(historyWithoutCurrent, message, knowledgeBase);

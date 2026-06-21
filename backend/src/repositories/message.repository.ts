@@ -1,4 +1,4 @@
-import prisma from '../db/prisma';
+import { Message } from '../db';
 import { IMessage, MessageSender, DatabaseError } from '../types';
 
 interface CreateMessageParams {
@@ -10,13 +10,12 @@ interface CreateMessageParams {
 export class MessageRepository {
   async create(params: CreateMessageParams): Promise<IMessage> {
     try {
-      return await prisma.message.create({
-        data: {
-          conversationId: params.conversationId,
-          sender: params.sender,
-          content: params.content,
-        },
+      const message = await Message.create({
+        conversationId: params.conversationId,
+        sender: params.sender,
+        content: params.content,
       });
+      return message.toJSON();
     } catch (error) {
       throw new DatabaseError('Failed to save message');
     }
@@ -24,10 +23,12 @@ export class MessageRepository {
 
   async getByConversationId(conversationId: string): Promise<IMessage[]> {
     try {
-      return await prisma.message.findMany({
+      const messages = await Message.findAll({
         where: { conversationId },
-        orderBy: { createdAt: 'asc' },
+        order: [['createdAt', 'ASC']],
       });
+      // Returns models instances
+      return messages.map((m) => m.toJSON());
     } catch (error) {
       throw new DatabaseError('Failed to fetch messages');
     }
@@ -38,13 +39,13 @@ export class MessageRepository {
     limit: number = 20
   ): Promise<IMessage[]> {
     try {
-      const messages = await prisma.message.findMany({
+      const messages = await Message.findAll({
         where: { conversationId },
-        orderBy: { createdAt: 'desc' },
-        take: limit,
+        order: [['createdAt', 'DESC']],
+        limit: limit,
       });
-      // Return in chronological order
-      return messages.reverse();
+      const jsonMessages = messages.map((m) => m.toJSON());
+      return jsonMessages.reverse();
     } catch (error) {
       throw new DatabaseError('Failed to fetch recent messages');
     }
