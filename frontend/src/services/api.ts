@@ -33,7 +33,7 @@ api.interceptors.response.use(
 
 export const chatApi = {
   sendMessage: async (message: string, sessionId?: string): Promise<ChatResponse> => {
-    const response = await api.post<ChatResponse>('/chat/message', {
+    const response = await api.post<ChatResponse>('chat/message', {
       message,
       sessionId: sessionId || undefined,
     });
@@ -41,17 +41,17 @@ export const chatApi = {
   },
 
   getConversation: async (id: string): Promise<ConversationResponse> => {
-    const response = await api.get<ConversationResponse>(`/conversations/${id}`);
+    const response = await api.get<ConversationResponse>(`conversations/${id}`);
     return response.data;
   },
 
   listConversations: async (): Promise<ConversationsListResponse> => {
-    const response = await api.get<ConversationsListResponse>('/conversations');
+    const response = await api.get<ConversationsListResponse>('conversations');
     return response.data;
   },
 
   deleteConversation: async (id: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete<{ success: boolean; message: string }>(`/conversations/${id}`);
+    const response = await api.delete<{ success: boolean; message: string }>(`conversations/${id}`);
     return response.data;
   },
 };
