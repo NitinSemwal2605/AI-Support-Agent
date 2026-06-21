@@ -6,8 +6,21 @@ import type {
   ApiError,
 } from '../types';
 
+const getBaseUrl = () => {
+  let url = import.meta.env.VITE_API_URL;
+  if (!url) return '/api';
+  
+  // Remove trailing slash if present
+  url = url.replace(/\/$/, '');
+  // Force /api at the end if the user forgot to add it in Vercel
+  if (!url.endsWith('/api')) {
+    url += '/api';
+  }
+  return url;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: getBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
   timeout: 30000, // 30s for LLM calls
 });
