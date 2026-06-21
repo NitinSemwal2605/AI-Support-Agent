@@ -51,6 +51,19 @@ export class ConversationService {
   async listAll(): Promise<IConversation[]> {
     return conversationRepository.findAll();
   }
+
+  /**
+   * Hard deletes a conversation and all its messages.
+   */
+  async deleteConversation(id: string): Promise<boolean> {
+    const exists = await conversationRepository.exists(id);
+    if (!exists) {
+      // If it's already not in the DB, consider the deletion successful.
+      // This prevents errors if frontend local storage gets out of sync with DB.
+      return true;
+    }
+    return conversationRepository.delete(id);
+  }
 }
 
 export const conversationService = new ConversationService();

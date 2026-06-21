@@ -10,6 +10,7 @@ export interface Message {
 
 export interface Conversation {
   id: string;
+  title?: string;
   createdAt: string;
   updatedAt: string;
   messages?: Message[];
@@ -17,6 +18,7 @@ export interface Conversation {
 
 export interface ConversationListItem {
   id: string;
+  title?: string;
   createdAt: string;
   updatedAt: string;
   messages?: Message[]; // last message for preview

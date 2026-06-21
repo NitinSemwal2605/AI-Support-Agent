@@ -4,6 +4,7 @@ export type MessageSender = 'user' | 'ai';
 // ─── Database Models ──────────────────────────────────────────────────────────
 export interface IConversation {
   id: string;
+  title?: string | null;
   createdAt: Date;
   updatedAt: Date;
   messages?: IMessage[];

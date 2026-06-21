@@ -3,21 +3,9 @@ import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { useChat } from './hooks/useChat';
 
-const DARK_MODE_KEY = 'spur_dark_mode';
-
 function App() {
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    try {
-      const stored = localStorage.getItem(DARK_MODE_KEY);
-      if (stored !== null) return stored === 'true';
-      // Default: respect system preference
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    } catch {
-      return true;
-    }
-  });
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
 
   const {
     messages,
@@ -29,43 +17,36 @@ function App() {
     sendMessage,
     startNewConversation,
     loadConversation,
+    deleteConversation,
     dismissError,
   } = useChat();
 
-  // Persist dark mode and update document class
+  // Toggle Tailwind dark mode class on the root element
   useEffect(() => {
-    const root = document.documentElement;
     if (darkMode) {
-      root.classList.add('dark');
+      document.documentElement.classList.add('dark');
     } else {
-      root.classList.remove('dark');
-    }
-    try {
-      localStorage.setItem(DARK_MODE_KEY, String(darkMode));
-    } catch {
-      // ignore
+      document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
 
-  const toggleDarkMode = () => setDarkMode((d) => !d);
-
   return (
-    <div className="flex h-screen bg-surface-900 text-surface-100 overflow-hidden">
-      {/* Sidebar toggle button (mobile / collapsed) */}
+    <div className="flex h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden selection:bg-blue-200 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 font-sans">
+      {/* Mobile sidebar toggle */}
       <button
         onClick={() => setSidebarOpen((o) => !o)}
-        className="fixed top-4 left-4 z-50 lg:hidden w-9 h-9 rounded-xl bg-surface-800 border border-surface-700 flex items-center justify-center text-surface-300 hover:text-surface-100 hover:bg-surface-700 transition-all"
+        className="fixed top-4 left-4 z-50 lg:hidden w-10 h-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-all shadow-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
         aria-label="Toggle sidebar"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
       </button>
 
       {/* Sidebar */}
       <div className={`
-        transition-all duration-300 ease-in-out
-        ${sidebarOpen ? 'w-72 opacity-100' : 'w-0 opacity-0 overflow-hidden'}
+        transition-all duration-300 ease-in-out border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900
+        ${sidebarOpen ? 'w-64 opacity-100' : 'w-0 opacity-0 overflow-hidden'}
         flex-shrink-0
       `}>
         <Sidebar
@@ -73,13 +54,14 @@ function App() {
           currentSessionId={sessionId}
           onNewConversation={startNewConversation}
           onLoadConversation={loadConversation}
+          onDeleteConversation={deleteConversation}
           darkMode={darkMode}
-          onToggleDarkMode={toggleDarkMode}
+          onToggleDarkMode={() => setDarkMode(!darkMode)}
         />
       </div>
 
       {/* Main chat area */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden relative bg-white dark:bg-slate-950">
         <ChatWindow
           messages={messages}
           isLoading={isLoading}

@@ -6,6 +6,7 @@ import { IConversation, IMessage } from '../../types';
 // This ensures our Sequelize model satisfies the TypeScript types expected by the rest of the app.
 export class Conversation extends Model implements IConversation {
   public id!: string;
+  public title!: string | null;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
@@ -20,6 +21,10 @@ Conversation.init(
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4, // Auto-generates a UUID
       primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
     // createdAt and updatedAt are automatically managed by Sequelize when timestamps: true
   },

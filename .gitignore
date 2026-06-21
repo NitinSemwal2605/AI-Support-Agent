@@ -28,3 +28,11 @@ Thumbs.db
 
 # Vercel / Render
 .vercel/
+
+# Ignore markdown files except README
+*.md
+!README.md
+
+# Local tools
+backend/.neon
+backend/skills-lock.json

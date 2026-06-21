@@ -49,6 +49,7 @@ export function useChat() {
   const [sessionId, setSessionId] = useState<string | null>(loadSessionId);
   const [isRestoringSession, setIsRestoringSession] = useState(false);
   const [conversations, setConversations] = useState<ConversationListItem[]>(loadConversations);
+  // Prevents duplicate fetch in React StrictMode
   const hasInitialized = useRef(false);
 
   // Restore chat history from server on mount
@@ -81,33 +82,37 @@ export function useChat() {
     }
   }, []);
 
+  // Sends a message and handles the optimistic UI update
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() || isLoading) return;
 
       setError(null);
 
-      // Optimistic UI — show user message immediately
+      // Optimistic UI: show the message immediately before server responds
       const userMsg: OptimisticMessage = {
         id: generateId(),
         sender: 'user',
         content: content.trim(),
         createdAt: new Date().toISOString(),
       };
+      
       setMessages((prev) => [...prev, userMsg]);
       setIsLoading(true);
 
       try {
         const response = await chatApi.sendMessage(content.trim(), sessionId || undefined);
 
-        // Persist session
+        // New conversation — persist the session
         if (!sessionId || sessionId !== response.sessionId) {
           saveSessionId(response.sessionId);
           setSessionId(response.sessionId);
 
-          // Add to conversations list
+          const title = content.substring(0, 40) + (content.length > 40 ? '...' : '');
+
           const newConv: ConversationListItem = {
             id: response.sessionId,
+            title,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
@@ -116,7 +121,7 @@ export function useChat() {
           saveConversations(updated);
         }
 
-        // Add AI response
+        // Append AI reply
         const aiMsg: OptimisticMessage = {
           id: generateId(),
           sender: 'ai',
@@ -127,7 +132,6 @@ export function useChat() {
       } catch (err) {
         const error = err as Error;
         setError(error.message || 'Something went wrong. Please try again.');
-        // Remove optimistic user message on failure
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       } finally {
         setIsLoading(false);
@@ -139,8 +143,12 @@ export function useChat() {
   const startNewConversation = useCallback(() => {
     // Archive current session before clearing
     if (sessionId && messages.length > 0) {
+      const firstMsg = messages[0]?.content || '';
+      const title = firstMsg.substring(0, 40) + (firstMsg.length > 40 ? '...' : '');
+
       const existingConv: ConversationListItem = {
         id: sessionId,
+        title,
         createdAt: messages[0]?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         messages: messages.slice(-1) as never,
@@ -180,6 +188,27 @@ export function useChat() {
     }
   }, [sessionId]);
 
+  const deleteConversation = useCallback(async (id: string) => {
+    try {
+      await chatApi.deleteConversation(id);
+      
+      // Update local state
+      const updated = conversations.filter(c => c.id !== id);
+      setConversations(updated);
+      saveConversations(updated);
+
+      // If we deleted the current session, start a new one
+      if (id === sessionId) {
+        localStorage.removeItem(SESSION_KEY);
+        setSessionId(null);
+        setMessages([]);
+        setError(null);
+      }
+    } catch {
+      setError('Failed to delete conversation.');
+    }
+  }, [conversations, sessionId]);
+
   const dismissError = useCallback(() => setError(null), []);
 
   return {
@@ -192,6 +221,7 @@ export function useChat() {
     sendMessage,
     startNewConversation,
     loadConversation,
+    deleteConversation,
     dismissError,
   };
 }

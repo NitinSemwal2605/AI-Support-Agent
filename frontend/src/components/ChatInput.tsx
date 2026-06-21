@@ -29,7 +29,6 @@ export function ChatInput({ onSend, disabled, value, onChange }: ChatInputProps)
     if (!value.trim() || disabled) return;
     onSend(value);
     onChange('');
-    // Reset height
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -40,69 +39,55 @@ export function ChatInput({ onSend, disabled, value, onChange }: ChatInputProps)
     }
   };
 
-  const remaining = MAX_LENGTH - value.length;
-  const nearLimit = remaining < 200;
-  const atLimit = remaining <= 0;
-
   return (
-    <div className="border-t border-surface-700/50 bg-surface-900/80 backdrop-blur-sm p-4">
-      <div className={`flex items-end gap-3 bg-surface-800 border rounded-2xl px-4 py-3 transition-all duration-200
-        ${disabled ? 'border-surface-700 opacity-60' : 'border-surface-600 focus-within:border-brand-500 focus-within:shadow-lg focus-within:shadow-brand-900/20'}
+    <div className="w-full">
+      <div className={`flex items-end gap-2 bg-white dark:bg-slate-900 border shadow-sm rounded-[24px] px-3 py-2.5 transition-all
+        ${disabled ? 'opacity-60 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800' : 'border-slate-300 dark:border-slate-700 focus-within:border-blue-500 dark:focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10'}
       `}>
         {/* Textarea */}
         <textarea
           ref={textareaRef}
-          id="chat-input"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          placeholder={disabled ? 'Agent is responding…' : 'Type your message… (Enter to send, Shift+Enter for newline)'}
+          placeholder="Type your message here..."
           maxLength={MAX_LENGTH}
           rows={1}
-          className="flex-1 bg-transparent text-surface-100 placeholder-surface-500 text-sm resize-none outline-none min-h-[24px] max-h-40 leading-6 disabled:cursor-not-allowed"
+          className="flex-1 bg-transparent text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-[15px] resize-none outline-none min-h-[24px] max-h-40 py-2 leading-6 disabled:cursor-not-allowed mx-2"
         />
 
-        {/* Character count + send button */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Character count — only show near limit */}
-          {nearLimit && (
-            <span className={`text-xs tabular-nums ${atLimit ? 'text-red-400' : 'text-amber-400'}`}>
-              {remaining}
-            </span>
+        {/* Send button */}
+        <button
+          onClick={handleSend}
+          disabled={disabled || !value.trim()}
+          className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 mt-auto mb-0.5
+            ${disabled || !value.trim()
+              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow active:scale-95'
+            }
+          `}
+        >
+          {disabled && value.trim() ? (
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
           )}
-
-          {/* Send button */}
-          <button
-            id="send-message-btn"
-            onClick={handleSend}
-            disabled={disabled || !value.trim() || atLimit}
-            className={`flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200
-              ${disabled || !value.trim() || atLimit
-                ? 'bg-surface-700 text-surface-500 cursor-not-allowed'
-                : 'bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg shadow-brand-900/30 hover:shadow-brand-900/50 hover:scale-105 active:scale-95'
-              }`}
-            aria-label="Send message"
-          >
-            {disabled ? (
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-              </svg>
-            )}
-          </button>
-        </div>
+        </button>
       </div>
-
-      {/* Hint */}
-      <p className="text-center text-[11px] text-surface-600 mt-2">
-        Press <kbd className="px-1 py-0.5 bg-surface-700 rounded text-surface-400 text-[10px]">Enter</kbd> to send ·{' '}
-        <kbd className="px-1 py-0.5 bg-surface-700 rounded text-surface-400 text-[10px]">Shift+Enter</kbd> for new line
-      </p>
+      <div className="flex justify-between items-center mt-2 px-1">
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+          Powered by <span className="font-medium text-slate-500 dark:text-slate-400">Intelligent Support</span>
+        </p>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:block">
+          Enter to send, Shift + Enter for new line
+        </p>
+      </div>
     </div>
   );
 }

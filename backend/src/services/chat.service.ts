@@ -1,4 +1,5 @@
 import { conversationService } from './conversation.service';
+import { conversationRepository } from '../repositories/conversation.repository';
 import { messageRepository } from '../repositories/message.repository';
 import { llmService } from './llm.service';
 import { KnowledgeBase } from '../db';
@@ -21,6 +22,13 @@ export class ChatService {
 
     // Step 1: Get or create conversation
     const conversation = await conversationService.getOrCreate(sessionId);
+
+    // If it's a new conversation or title is missing, set a title based on the first message
+    if (!conversation.title) {
+      const title = message.substring(0, 40) + (message.length > 40 ? '...' : '');
+      await conversationRepository.updateTitle(conversation.id, title);
+      conversation.title = title; // Update local object
+    }
 
     // Step 2: Save user message
     await messageRepository.create({

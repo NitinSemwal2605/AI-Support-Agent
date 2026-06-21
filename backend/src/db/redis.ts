@@ -20,7 +20,11 @@ redisClient.on('connect', () => {
 
 export const connectRedis = async () => {
   try {
-    await redisClient.connect();
+    // Fail fast if Redis doesn't connect within 2 seconds
+    await Promise.race([
+      redisClient.connect(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connection timeout')), 2000))
+    ]);
   } catch (error) {
     console.warn('⚠️ Could not establish initial Redis connection. Continuing without cache (Graceful Degradation).');
     isRedisConnected = false;

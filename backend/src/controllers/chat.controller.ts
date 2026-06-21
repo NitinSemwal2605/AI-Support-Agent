@@ -52,6 +52,25 @@ export class ChatController {
       next(error);
     }
   }
+
+  /**
+   * DELETE /api/conversations/:id
+   * Deletes a conversation.
+   */
+  async deleteConversation(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      if (!id || typeof id !== 'string') {
+        throw new AppError('Conversation ID is required', 400);
+      }
+
+      await conversationService.deleteConversation(id);
+      res.status(200).json({ success: true, message: 'Conversation deleted' });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const chatController = new ChatController();

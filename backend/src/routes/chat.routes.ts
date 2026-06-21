@@ -20,4 +20,9 @@ router.get('/conversations/:id',
   (req, res, next) => chatController.getConversation(req, res, next)
 );
 
+// DELETE /api/conversations/:id — delete a specific conversation
+router.delete('/conversations/:id',
+  (req, res, next) => chatController.deleteConversation(req, res, next)
+);
+
 export default router;

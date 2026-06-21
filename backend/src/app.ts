@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -77,10 +78,10 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 
 sequelize.sync({ alter: true }).then(async () => {
   console.log('📦 Database synced with Sequelize.');
-  
-  // Try to connect to Redis, but don't crash if it fails
-  await connectRedis();
-  
+
+  // Try to connect to Redis asynchronously so it doesn't block server startup
+  connectRedis().catch(console.error);
+
   app.listen(PORT, () => {
     console.log(`
     🚀 Spur Support Backend running

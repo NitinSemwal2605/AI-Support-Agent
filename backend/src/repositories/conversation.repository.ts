@@ -8,6 +8,7 @@ export class ConversationRepository {
       // Return plain JSON object to match IConversation interface
       return conversation.toJSON();
     } catch (error) {
+      console.error('Inner Conversation.create error:', error);
       throw new DatabaseError('Failed to create conversation');
     }
   }
@@ -55,6 +56,23 @@ export class ConversationRepository {
       return count > 0;
     } catch (error) {
       throw new DatabaseError('Failed to check conversation existence');
+    }
+  }
+
+  async updateTitle(id: string, title: string): Promise<void> {
+    try {
+      await Conversation.update({ title }, { where: { id } });
+    } catch (error) {
+      throw new DatabaseError('Failed to update conversation title');
+    }
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      const count = await Conversation.destroy({ where: { id } });
+      return count > 0;
+    } catch (error) {
+      throw new DatabaseError('Failed to delete conversation');
     }
   }
 }
