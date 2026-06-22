@@ -18,6 +18,7 @@ function App() {
     startNewConversation,
     loadConversation,
     deleteConversation,
+    renameConversation,
     dismissError,
   } = useChat();
 
@@ -55,6 +56,7 @@ function App() {
           onNewConversation={startNewConversation}
           onLoadConversation={loadConversation}
           onDeleteConversation={deleteConversation}
+          onRenameConversation={renameConversation}
           darkMode={darkMode}
           onToggleDarkMode={() => setDarkMode(!darkMode)}
         />

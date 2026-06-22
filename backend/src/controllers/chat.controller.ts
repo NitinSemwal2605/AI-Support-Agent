@@ -71,6 +71,29 @@ export class ChatController {
       next(error);
     }
   }
+
+  /**
+   * PUT /api/conversations/:id/title
+   * Renames a conversation.
+   */
+  async renameConversation(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { title } = req.body;
+
+      if (!id || typeof id !== 'string') {
+        throw new AppError('Conversation ID is required', 400);
+      }
+      if (!title || typeof title !== 'string') {
+        throw new AppError('New title is required', 400);
+      }
+
+      await conversationService.renameConversation(id, title);
+      res.status(200).json({ success: true, message: 'Conversation renamed', title });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const chatController = new ChatController();

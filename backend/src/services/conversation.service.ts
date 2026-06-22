@@ -64,6 +64,18 @@ export class ConversationService {
     }
     return conversationRepository.delete(id);
   }
+
+  /**
+   * Renames a conversation title.
+   */
+  async renameConversation(id: string, title: string): Promise<boolean> {
+    const exists = await conversationRepository.exists(id);
+    if (!exists) {
+      throw new AppError('Conversation not found', 404);
+    }
+    await conversationRepository.updateTitle(id, title);
+    return true;
+  }
 }
 
 export const conversationService = new ConversationService();

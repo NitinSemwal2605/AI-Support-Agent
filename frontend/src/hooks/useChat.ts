@@ -209,6 +209,21 @@ export function useChat() {
     }
   }, [conversations, sessionId]);
 
+  const renameConversation = useCallback(async (id: string, newTitle: string) => {
+    try {
+      await chatApi.renameConversation(id, newTitle);
+      
+      // Update local state
+      const updated = conversations.map(c => 
+        c.id === id ? { ...c, title: newTitle } : c
+      );
+      setConversations(updated);
+      saveConversations(updated);
+    } catch {
+      setError('Failed to rename conversation.');
+    }
+  }, [conversations]);
+
   const dismissError = useCallback(() => setError(null), []);
 
   return {
@@ -222,6 +237,7 @@ export function useChat() {
     startNewConversation,
     loadConversation,
     deleteConversation,
+    renameConversation,
     dismissError,
   };
 }

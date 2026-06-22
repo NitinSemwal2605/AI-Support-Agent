@@ -67,6 +67,11 @@ export const chatApi = {
     const response = await api.delete<{ success: boolean; message: string }>(`conversations/${id}`);
     return response.data;
   },
+
+  renameConversation: async (id: string, title: string): Promise<{ success: boolean; message: string; title: string }> => {
+    const response = await api.put<{ success: boolean; message: string; title: string }>(`conversations/${id}/title`, { title });
+    return response.data;
+  },
 };
 
 export default api;

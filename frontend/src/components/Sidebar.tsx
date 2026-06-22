@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import type { ConversationListItem } from '../types';
 
 interface SidebarProps {
@@ -6,6 +7,7 @@ interface SidebarProps {
   onNewConversation: () => void;
   onLoadConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
+  onRenameConversation: (id: string, title: string) => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
 }
@@ -16,9 +18,38 @@ export function Sidebar({
   onNewConversation,
   onLoadConversation,
   onDeleteConversation,
+  onRenameConversation,
   darkMode,
   onToggleDarkMode,
 }: SidebarProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editingId]);
+
+  const startEditing = (e: React.MouseEvent, id: string, currentTitle: string) => {
+    e.stopPropagation();
+    setEditingId(id);
+    setEditTitle(currentTitle);
+  };
+
+  const submitEdit = () => {
+    if (editingId && editTitle.trim()) {
+      onRenameConversation(editingId, editTitle.trim());
+    }
+    setEditingId(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') submitEdit();
+    if (e.key === 'Escape') setEditingId(null);
+  };
+
   return (
     <aside className="w-full flex flex-col h-full text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900">
       {/* Brand Header */}
@@ -64,21 +95,46 @@ export function Sidebar({
                 <svg className={`w-4 h-4 mr-2 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400 dark:text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
-                <span className={`text-[13px] leading-5 truncate flex-1 ${isActive ? 'text-blue-900 dark:text-blue-100 font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
-                  {preview}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteConversation(conv.id);
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-red-500 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Delete conversation"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+
+                {editingId === conv.id ? (
+                  <input
+                    ref={inputRef}
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onBlur={submitEdit}
+                    onKeyDown={handleKeyDown}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1 bg-transparent border-none outline-none text-[13px] leading-5 text-blue-900 dark:text-blue-100 font-medium focus:ring-1 focus:ring-blue-500 rounded px-1 -ml-1"
+                  />
+                ) : (
+                  <span className={`text-[13px] leading-5 truncate flex-1 ${isActive ? 'text-blue-900 dark:text-blue-100 font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
+                    {preview}
+                  </span>
+                )}
+
+                <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => startEditing(e, conv.id, preview)}
+                    className="p-1 text-slate-400 hover:text-blue-500 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                    title="Rename conversation"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteConversation(conv.id);
+                    }}
+                    className="p-1 text-slate-400 hover:text-red-500 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700"
+                    title="Delete conversation"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             );
           })

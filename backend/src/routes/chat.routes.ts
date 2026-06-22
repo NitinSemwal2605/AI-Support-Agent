@@ -25,4 +25,9 @@ router.delete('/conversations/:id',
   (req, res, next) => chatController.deleteConversation(req, res, next)
 );
 
+// PUT /api/conversations/:id/title — rename a specific conversation
+router.put('/conversations/:id/title',
+  (req, res, next) => chatController.renameConversation(req, res, next)
+);
+
 export default router;
