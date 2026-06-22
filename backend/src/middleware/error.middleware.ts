@@ -17,7 +17,7 @@ export const errorMiddleware = (
     return;
   }
 
-  // Gemini API errors
+  // LLM API errors (fallback for untyped errors)
   if (err.message?.includes('API_KEY_INVALID') || err.message?.includes('invalid_api_key')) {
     res.status(503).json({ error: 'AI service unavailable' });
     return;

@@ -4,9 +4,11 @@ A production-grade AI-powered customer support application built for the Spur Fo
 
 ## Live Demo
 
-- **Frontend**: Deployed on Vercel
-- **Backend**: Deployed on Render
-- **Database**: Neon PostgreSQL
+- **Frontend**: [https://ai-support-agent-lake.vercel.app](https://ai-support-agent-lake.vercel.app)
+- **Backend**: [https://ai-support-agent-1-j0pv.onrender.com](https://ai-support-agent-1-j0pv.onrender.com/health)
+- **Database**: Neon PostgreSQL (serverless)
+
+> **Note:** The Render backend may take ~30 seconds to cold-start on first visit. Subsequent requests will be fast.
 
 ---
 

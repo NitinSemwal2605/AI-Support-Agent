@@ -40,21 +40,33 @@ export class GroqProvider implements LLMProvider {
       const fullSystemPrompt = SYSTEM_PROMPT + knowledgeContext;
 
       // Map history to Groq chat completions format
-      const messages: any[] = [
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
         { role: 'system', content: fullSystemPrompt },
         ...history.map((h) => ({
-          role: h.role,
+          role: h.role as 'user' | 'assistant',
           content: h.content,
         })),
         { role: 'user', content: userMessage },
       ];
 
-      const completion = await this.client.chat.completions.create({
-        messages,
-        model: this.modelName,
-        temperature: 0.7,
-        max_tokens: 1024,
-      });
+      // Abort if Groq doesn't respond within 15 seconds to prevent hanging requests
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      let completion;
+      try {
+        completion = await this.client.chat.completions.create(
+          {
+            messages,
+            model: this.modelName,
+            temperature: 0.7,
+            max_tokens: 1024,
+          },
+          { signal: controller.signal as AbortSignal }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
 
       const text = completion.choices[0]?.message?.content;
       if (!text) {
@@ -67,6 +79,11 @@ export class GroqProvider implements LLMProvider {
 
       const error = err as Error;
       const message = error.message || '';
+
+      // Timeout from AbortController
+      if (error.name === 'AbortError' || message.includes('aborted')) {
+        throw new LLMError('AI service timed out. Please try again.');
+      }
 
       if (
         message.includes('rate_limit') ||

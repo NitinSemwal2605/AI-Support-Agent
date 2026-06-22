@@ -66,9 +66,9 @@ app.get('/health', (_req, res) => {
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+// All API routes go through the rate limiter
 app.use('/api/chat', chatLimiter, chatRoutes);
-// Alias for conversation routes (accessible both ways)
-app.use('/api', chatRoutes);
+app.use('/api', chatLimiter, chatRoutes);
 
 // ─── 404 + Error Handling ─────────────────────────────────────────────────────
 app.use(notFoundMiddleware);
