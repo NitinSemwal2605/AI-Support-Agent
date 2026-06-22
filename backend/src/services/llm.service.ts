@@ -23,7 +23,7 @@ export class GroqProvider implements LLMProvider {
       throw new LLMError('GROQ_API_KEY is not configured');
     }
     this.client = new Groq({ apiKey });
-    this.modelName = 'llama3-70b-8192'; // Fast and high quality model
+    this.modelName = 'llama-3.3-70b-versatile'; // Fast and high quality model
   }
 
   async generateReply(
