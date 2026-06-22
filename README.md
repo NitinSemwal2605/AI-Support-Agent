@@ -16,7 +16,7 @@ A production-grade AI-powered customer support application built for the Spur Fo
 
 - Node.js 18+
 - A [Neon](https://neon.tech) PostgreSQL database
-- A [Google AI Studio](https://aistudio.google.com) Gemini API key
+- A [Groq](https://console.groq.com) API key
 
 ### 1. Install Dependencies
 
@@ -41,7 +41,7 @@ Edit `.env`:
 
 ```env
 DATABASE_URL="postgresql://user:password@host.neon.tech/dbname?sslmode=require"
-GEMINI_API_KEY="your_gemini_api_key"
+GROQ_API_KEY="your_groq_api_key"
 PORT=3001
 FRONTEND_URL="http://localhost:5173"
 NODE_ENV="development"
@@ -84,7 +84,7 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | Variable | Description | Required |
 |---|---|---|
 | `DATABASE_URL` | Neon PostgreSQL connection string | ✅ |
-| `GEMINI_API_KEY` | Google Gemini API key | ✅ |
+| `GROQ_API_KEY` | Groq API key | ✅ |
 | `REDIS_URL` | Redis cache connection string (optional) | ❌ |
 | `PORT` | Backend server port (default: 3001) | ❌ |
 | `FRONTEND_URL` | Frontend URL for CORS | ❌ |
@@ -118,13 +118,13 @@ backend/src/
 ├── services/
 │   ├── chat.service.ts             # Core orchestrator — coordinates the full message lifecycle
 │   ├── conversation.service.ts     # Session management + history formatting for LLM
-│   └── llm.service.ts              # Gemini 2.5 Flash provider (implements LLMProvider interface)
+│   └── llm.service.ts              # Groq Llama 3.3 70B provider (implements LLMProvider interface)
 ├── repositories/
 │   ├── conversation.repository.ts  # Conversation CRUD — abstracts Sequelize queries
 │   └── message.repository.ts       # Message CRUD — abstracts Sequelize queries
 ├── middleware/
 │   ├── validation.middleware.ts    # Generic Zod schema validation factory
-│   └── error.middleware.ts         # Global error handler (catches AppError, Sequelize, Gemini errors)
+│   └── error.middleware.ts         # Global error handler (catches AppError, Sequelize, LLM errors)
 ├── validators/
 │   └── chat.validator.ts           # Zod schemas for request validation
 ├── db/
@@ -147,7 +147,7 @@ backend/src/
 |---|---|---|
 | **Routes** | Maps HTTP verbs + paths to controller methods. Applies validation middleware. | `POST /api/chat/message → validate(schema) → controller.sendMessage()` |
 | **Controllers** | Extracts data from `req.body` / `req.params`, calls the appropriate service, and sends the HTTP response. Contains zero business logic. | Pulls `message` and `sessionId` from body, calls `chatService.processMessage()` |
-| **Services** | Contains all business logic. Orchestrates multiple repositories and external APIs. | `chat.service` saves the user message, fetches history, calls Gemini, saves AI reply |
+| **Services** | Contains all business logic. Orchestrates multiple repositories and external APIs. | `chat.service` saves the user message, fetches history, calls Groq LLM, saves AI reply |
 | **Repositories** | Thin data-access layer that wraps Sequelize queries. Returns plain JSON objects (not Sequelize instances). | `messageRepository.create()`, `conversationRepository.findById()` |
 | **Models** | Sequelize model definitions that map to PostgreSQL tables. | `Conversation`, `Message`, `KnowledgeBase` |
 | **Middleware** | Cross-cutting concerns (validation, error handling, logging). | Zod validation runs before controllers; global error handler catches everything |
@@ -157,7 +157,7 @@ backend/src/
 ```
 Routes → Controllers → Services → Repositories → Database (PostgreSQL)
                           ↓
-                     LLM Service → Google Gemini API
+                     LLM Service → Groq API (Llama 3.3 70B)
                           ↓
                      Redis Cache (optional, graceful fallback)
 ```
@@ -198,11 +198,11 @@ flowchart TD
     K --> L{"Redis cache available?"}
     L -- Hit --> M["Load KnowledgeBase from Redis"]
     L -- Miss --> N["Fetch KnowledgeBase from PostgreSQL → cache in Redis"]
-    M --> O["🤖 GeminiProvider.generateReply()"]
+    M --> O["🤖 GroqProvider.generateReply()"]
     N --> O
     O --> P["Build System Prompt + KB context"]
-    P --> Q["Format history as Customer/Agent script"]
-    Q --> R["📤 Send to Google Gemini 2.5 Flash API"]
+    P --> Q["Format history as chat messages"]
+    Q --> R["📤 Send to Groq API (Llama 3.3 70B)"]
     R --> S["📥 Receive AI response text"]
     S --> T["Save AI message to Messages table"]
     T --> U["Return reply + sessionId to Controller"]
@@ -257,9 +257,9 @@ frontend/src/
 
 ## LLM Integration Notes
 
-### Provider: Google Gemini 2.5 Flash
+### Provider: Groq (Llama 3.3 70B Versatile)
 
-We use the `@google/genai` SDK to call `gemini-2.5-flash` via the `generateContent` API.
+We use the `groq-sdk` to call `llama-3.3-70b-versatile` via Groq's chat completions API. Groq runs LLM inference on custom LPU (Language Processing Unit) hardware, delivering extremely low latency responses — typically 10-20x faster than traditional GPU-based providers.
 
 ### Prompting Strategy
 
@@ -323,9 +323,9 @@ The AI generates the continuation of this script. This preserves multi-turn conv
 
 | Parameter | Value | Rationale |
 |---|---|---|
-| `model` | `gemini-2.5-flash` | Fast inference, large context window, excellent instruction-following |
+| `model` | `llama-3.3-70b-versatile` | High quality 70B parameter model with ultra-fast inference on Groq LPU hardware |
 | `temperature` | `0.7` | Balanced — creative enough for natural conversation, not so high it hallucinates |
-| `maxOutputTokens` | `1024` | Prevents excessively long responses for a support chat context |
+| `max_tokens` | `1024` | Prevents excessively long responses for a support chat context |
 
 ### LLM Provider Abstraction
 
@@ -345,7 +345,7 @@ Switching providers requires changing exactly **one line**:
 
 ```typescript
 // Current
-export const llmService: LLMProvider = new GeminiProvider();
+export const llmService: LLMProvider = new GroqProvider();
 
 // Future — no other code changes needed
 export const llmService: LLMProvider = new OpenAIProvider();
@@ -354,14 +354,13 @@ export const llmService: LLMProvider = new ClaudeProvider();
 
 ### Error Handling for LLM
 
-The `GeminiProvider` catches and classifies all Gemini API errors:
+The `GroqProvider` catches and classifies all Groq API errors:
 
 | Error Type | Detection | HTTP Status | User Message |
 |---|---|---|---|
-| Rate Limit | `RESOURCE_EXHAUSTED`, `429` | `429` | "AI service rate limit reached. Please try again." |
-| Invalid API Key | `API_KEY_INVALID`, `401`, `403` | `503` | "AI service unavailable" |
-| Safety Filter | `SAFETY` | `400` | "Message could not be processed due to content policy." |
-| Unknown | Everything else | `500` | "AI service temporarily unavailable." |
+| Rate Limit | `rate_limit`, `429` | `429` | "AI service rate limit reached. Please try again." |
+| Invalid API Key | `invalid_api_key`, `401`, `403` | `503` | "AI service unavailable" |
+| Unknown | Everything else | `503` | "AI service temporarily unavailable." |
 
 ---
 
@@ -424,7 +423,7 @@ Health check endpoint — returns server status, timestamp, and version.
 
 ## Features
 
-- ✅ Real AI responses via Google Gemini 2.5 Flash
+- ✅ Real AI responses via Groq (Llama 3.3 70B Versatile) — ultra-fast inference
 - ✅ Knowledge Base grounding (shipping, returns, refunds, support hours stored in DB)
 - ✅ Redis caching for Knowledge Base (Cache-Aside pattern with graceful fallback)
 - ✅ Session management with localStorage persistence
@@ -438,7 +437,7 @@ Health check endpoint — returns server status, timestamp, and version.
 - ✅ Structured error handling (LLM errors, DB errors, rate limits, safety filters)
 - ✅ Optimistic UI updates (instant message rendering)
 - ✅ Responsive design (mobile-friendly)
-- ✅ LLM Provider abstraction (swappable Gemini → OpenAI → Claude)
+- ✅ LLM Provider abstraction (swappable Groq → OpenAI → Claude)
 
 ---
 
@@ -449,7 +448,7 @@ Health check endpoint — returns server status, timestamp, and version.
 1. Deploy the backend code to Render as a **Web Service**
 2. Set build command: `npm install && npm run build`
 3. Set start command: `npm start`
-4. Add environment variables: `DATABASE_URL`, `GEMINI_API_KEY`, `FRONTEND_URL`, `NODE_ENV=production`
+4. Add environment variables: `DATABASE_URL`, `GROQ_API_KEY`, `FRONTEND_URL`, `NODE_ENV=production`
 
 ### Frontend (Vercel)
 
@@ -468,12 +467,12 @@ Health check endpoint — returns server status, timestamp, and version.
 
 ## Trade-offs & Decisions
 
-### Why Gemini 2.5 Flash?
-- **Assignment requirement**: The brief specifies Gemini integration
-- **Speed**: Flash is optimized for low-latency inference, critical for a chat UX where users expect near-instant replies
-- **Context window**: Handles long conversation histories without truncation issues
-- **Cost**: Free tier is generous enough for development and demo purposes
-- **Instruction-following**: Excellent at staying within the guardrails defined in the system prompt
+### Why Groq (Llama 3.3 70B)?
+- **Speed**: Groq's custom LPU hardware delivers inference speeds 10-20x faster than traditional GPU providers, critical for a chat UX where users expect near-instant replies
+- **Quality**: Llama 3.3 70B is a highly capable open-source model with excellent instruction-following and reasoning abilities
+- **Context window**: 8192 token context window comfortably handles conversation histories
+- **Cost**: Groq offers a generous free tier for development and demo purposes
+- **Open ecosystem**: Built on Meta's open-source Llama models, avoiding vendor lock-in to any single proprietary AI provider
 
 ### Why PostgreSQL (Neon)?
 - **Relational fit**: Conversations → Messages is a natural one-to-many relationship that maps perfectly to relational tables
@@ -504,8 +503,8 @@ Health check endpoint — returns server status, timestamp, and version.
 |---|---|---|
 | No authentication | Anyone with the session UUID can access a conversation | For a demo/assignment this is acceptable; production would need JWT auth |
 | Knowledge base is static | Policies can only be updated by re-running `npm run db:seed` | An admin panel with CRUD endpoints would solve this |
-| No streaming responses | Users see the full response appear at once after a delay | Gemini supports `generateContentStream`; adding SSE is straightforward |
-| No rate limiting | A malicious user could spam the Gemini API | `express-rate-limit` middleware per IP would prevent abuse |
+| No streaming responses | Users see the full response appear at once after a delay | Groq supports streaming; adding SSE is straightforward |
+| No rate limiting | A malicious user could spam the Groq API | `express-rate-limit` middleware per IP would prevent abuse |
 | Full KB loaded every time | Works fine for small KB, but won't scale to thousands of articles | RAG with vector embeddings would fetch only relevant articles |
 
 ---
@@ -513,11 +512,11 @@ Health check endpoint — returns server status, timestamp, and version.
 ## If I Had More Time…
 
 ### Streaming Responses (SSE)
-Replace the current request/response cycle with **Server-Sent Events**. Gemini's `generateContentStream` returns tokens incrementally — piping these through an SSE connection would show the AI "typing" word-by-word, dramatically improving perceived responsiveness.
+Replace the current request/response cycle with **Server-Sent Events**. Groq's streaming API returns tokens incrementally — piping these through an SSE connection would show the AI "typing" word-by-word, dramatically improving perceived responsiveness.
 
 ### RAG (Retrieval-Augmented Generation)
 Instead of loading the entire Knowledge Base into every prompt, I would:
-1. Generate vector embeddings for each KB article using Gemini's `text-embedding-004` model
+1. Generate vector embeddings for each KB article using an embedding model (e.g., `text-embedding-3-small`)
 2. Store embeddings in PostgreSQL using the `pgvector` extension
 3. On each user message, embed the question and run a cosine similarity search to retrieve only the top 3 most relevant articles
 4. Pass only those articles to the LLM — reducing token usage and improving answer precision
